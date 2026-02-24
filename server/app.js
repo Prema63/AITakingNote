@@ -1,7 +1,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import pool from "./database/db.js"; 
+import { createDataBase, createTable } from "./database/models.js";
+import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -12,7 +13,11 @@ app.use(
         credentials: true
     })
 );
+// createDataBase(process.env.DATABASE_URL);
+await createTable();
 app.use(express.json());
+
+app.use("/api/auth", authRoutes);
 
 app.get("/", (req, res) => {
     res.send(`Server is running on port: ${process.env.PORT}`);

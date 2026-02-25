@@ -11,7 +11,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType>({
   dark: true,
-  toggleTheme: () => {},
+  toggleTheme: () => { },
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -42,3 +42,37 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useTheme = () => useContext(ThemeContext);
+
+//  MODAL CONTEXT
+
+interface ModalContextType {
+  isModalOpen: boolean;
+  openModal: () => void;
+  closeModal: () => void;
+  toggleModal: () => void;
+}
+
+const ModalContext = createContext<ModalContextType>({
+  isModalOpen: false,
+  openModal: () => { },
+  closeModal: () => { },
+  toggleModal: () => { },
+});
+
+export function ModalProvider({ children }: { children: React.ReactNode }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+  const toggleModal = () => setIsModalOpen((prev) => !prev);
+
+  return (
+    <ModalContext.Provider
+      value={{ isModalOpen, openModal, closeModal, toggleModal }}
+    >
+      {children}
+    </ModalContext.Provider>
+  );
+}
+
+export const useModal = () => useContext(ModalContext);

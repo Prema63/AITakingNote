@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.post("/add-note", authenticate, AddNotes);
 
-router.get("/notes/:user_id", authenticate, getNotes );
+router.get("/get-notes/:user_id", authenticate, getNotes );
 
 export default router;

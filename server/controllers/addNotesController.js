@@ -7,6 +7,18 @@ export const AddNotes = async (req, res) => {
   try {
     const { user_id, title, description, type } = req.body;
 
+    // Check if user exists
+    const userCheck = await db.query(
+      "SELECT * FROM usertable WHERE user_id = $1",
+      [user_id]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(400).json({
+        message: "User does not exist"
+      });
+    }
+
     const newNote = await db.query(
       `INSERT INTO notes (user_id, title, description, type)
        VALUES ($1, $2, $3, $4)
@@ -18,17 +30,18 @@ export const AddNotes = async (req, res) => {
       message: "Note created successfully",
       data: newNote.rows[0],
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
-}
+};
 
 export const getNotes = async (req, res) => {
   try {
     const { user_id } = req.params;
 
-    const notes = await pool.query(
+    const notes = await db.query(
       `SELECT * FROM notes WHERE user_id = $1 ORDER BY created_at DESC`,
       [user_id]
     );

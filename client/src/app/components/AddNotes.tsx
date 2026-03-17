@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import { useTheme } from "../context/ThemeContext";
 import {
   X,
@@ -28,18 +29,25 @@ import {
   Sparkles,
   AlignLeft,
   AlignCenter,
+  Loader2,
+  AlertCircle,
   LucideIcon,
 } from "lucide-react";
 
+// ── shared axios instance (same baseURL as Navbar) ──────────────
+const api = axios.create({
+  baseURL: "http://localhost:8000",
+  headers: { "Content-Type": "application/json" },
+});
 
 interface NoteType {
   id: string;
   label: string;
   Icon: LucideIcon;
-  accent: string;          // text color
-  accentBg: string;        // bg color (subtle)
-  accentRing: string;      // ring/border color
-  accentSolid: string;     // solid bg for selected pill
+  accent: string;
+  accentBg: string;
+  accentRing: string;
+  accentSolid: string;
 }
 
 interface NoteIcon {
@@ -60,127 +68,84 @@ export interface NewNote {
 interface AddNoteModalProps {
   onClose: () => void;
   onSave: (note: NewNote) => void;
+  /** Pass the logged-in user's id so it can be sent to the API */
+  userId?: string;
 }
 
 const NOTE_TYPES: NoteType[] = [
-  {
-    id: "work",
-    label: "Work",
-    Icon: Briefcase,
-    accent: "text-blue-400",
-    accentBg: "bg-blue-500/10",
-    accentRing: "border-blue-500/40",
-    accentSolid: "bg-blue-500",
-  },
-  {
-    id: "personal",
-    label: "Personal",
-    Icon: User,
-    accent: "text-emerald-400",
-    accentBg: "bg-emerald-500/10",
-    accentRing: "border-emerald-500/40",
-    accentSolid: "bg-emerald-500",
-  },
-  {
-    id: "dev",
-    label: "Dev",
-    Icon: Code2,
-    accent: "text-violet-400",
-    accentBg: "bg-violet-500/10",
-    accentRing: "border-violet-500/40",
-    accentSolid: "bg-violet-500",
-  },
-  {
-    id: "design",
-    label: "Design",
-    Icon: Palette,
-    accent: "text-pink-400",
-    accentBg: "bg-pink-500/10",
-    accentRing: "border-pink-500/40",
-    accentSolid: "bg-pink-500",
-  },
-  {
-    id: "journal",
-    label: "Journal",
-    Icon: BookOpen,
-    accent: "text-amber-400",
-    accentBg: "bg-amber-500/10",
-    accentRing: "border-amber-500/40",
-    accentSolid: "bg-amber-500",
-  },
+  { id: "work",     label: "Work",     Icon: Briefcase, accent: "text-blue-400",    accentBg: "bg-blue-500/10",    accentRing: "border-blue-500/40",    accentSolid: "bg-blue-500"    },
+  { id: "personal", label: "Personal", Icon: User,      accent: "text-emerald-400", accentBg: "bg-emerald-500/10", accentRing: "border-emerald-500/40", accentSolid: "bg-emerald-500" },
+  { id: "dev",      label: "Dev",      Icon: Code2,     accent: "text-violet-400",  accentBg: "bg-violet-500/10",  accentRing: "border-violet-500/40",  accentSolid: "bg-violet-500"  },
+  { id: "design",   label: "Design",   Icon: Palette,   accent: "text-pink-400",    accentBg: "bg-pink-500/10",    accentRing: "border-pink-500/40",    accentSolid: "bg-pink-500"    },
+  { id: "journal",  label: "Journal",  Icon: BookOpen,  accent: "text-amber-400",   accentBg: "bg-amber-500/10",   accentRing: "border-amber-500/40",   accentSolid: "bg-amber-500"   },
 ];
 
 const NOTE_ICONS: NoteIcon[] = [
-  { id: "pen",      Icon: PenLine,      label: "Pen"      },
-  { id: "work",     Icon: Briefcase,    label: "Work"     },
-  { id: "code",     Icon: Code2,        label: "Code"     },
-  { id: "design",   Icon: Palette,      label: "Design"   },
-  { id: "book",     Icon: BookOpen,     label: "Book"     },
-  { id: "list",     Icon: List,         label: "List"     },
-  { id: "hash",     Icon: Hash,         label: "Tag"      },
-  { id: "star",     Icon: Star,         label: "Star"     },
-  { id: "smile",    Icon: Smile,        label: "Mood"     },
-  { id: "image",    Icon: ImagePlus,    label: "Image"    },
-  { id: "link",     Icon: Link2,        label: "Link"     },
-  { id: "check",    Icon: CheckSquare,  label: "Task"     },
+  { id: "pen",    Icon: PenLine,     label: "Pen"    },
+  { id: "work",   Icon: Briefcase,   label: "Work"   },
+  { id: "code",   Icon: Code2,       label: "Code"   },
+  { id: "design", Icon: Palette,     label: "Design" },
+  { id: "book",   Icon: BookOpen,    label: "Book"   },
+  { id: "list",   Icon: List,        label: "List"   },
+  { id: "hash",   Icon: Hash,        label: "Tag"    },
+  { id: "star",   Icon: Star,        label: "Star"   },
+  { id: "smile",  Icon: Smile,       label: "Mood"   },
+  { id: "image",  Icon: ImagePlus,   label: "Image"  },
+  { id: "link",   Icon: Link2,       label: "Link"   },
+  { id: "check",  Icon: CheckSquare, label: "Task"   },
 ];
 
 const FORMAT_TOOLS = [
-  { Icon: Bold,         label: "Bold",          shortcut: "⌘B" },
-  { Icon: Italic,       label: "Italic",        shortcut: "⌘I" },
-  { Icon: Underline,    label: "Underline",     shortcut: "⌘U" },
-  { Icon: Minus,        label: "Divider",       shortcut: ""   },
-  { Icon: Hash,         label: "Heading",       shortcut: ""   },
-  { Icon: Quote,        label: "Quote",         shortcut: ""   },
-  { Icon: List,         label: "Bullet List",   shortcut: ""   },
-  { Icon: ListOrdered,  label: "Numbered List", shortcut: ""   },
-  { Icon: CheckSquare,  label: "Checklist",     shortcut: ""   },
-  { Icon: Minus,        label: "Divider",       shortcut: ""   },
-  { Icon: Link2,        label: "Link",          shortcut: "⌘K" },
-  { Icon: ImagePlus,    label: "Image",         shortcut: ""   },
-  { Icon: AlignLeft,    label: "Align Left",    shortcut: ""   },
-  { Icon: AlignCenter,  label: "Align Center",  shortcut: ""   },
+  { Icon: Bold,        label: "Bold",          shortcut: "⌘B" },
+  { Icon: Italic,      label: "Italic",        shortcut: "⌘I" },
+  { Icon: Underline,   label: "Underline",     shortcut: "⌘U" },
+  { Icon: Minus,       label: "Divider",       shortcut: ""   },
+  { Icon: Hash,        label: "Heading",       shortcut: ""   },
+  { Icon: Quote,       label: "Quote",         shortcut: ""   },
+  { Icon: List,        label: "Bullet List",   shortcut: ""   },
+  { Icon: ListOrdered, label: "Numbered List", shortcut: ""   },
+  { Icon: CheckSquare, label: "Checklist",     shortcut: ""   },
+  { Icon: Minus,       label: "Divider",       shortcut: ""   },
+  { Icon: Link2,       label: "Link",          shortcut: "⌘K" },
+  { Icon: ImagePlus,   label: "Image",         shortcut: ""   },
+  { Icon: AlignLeft,   label: "Align Left",    shortcut: ""   },
+  { Icon: AlignCenter, label: "Align Center",  shortcut: ""   },
 ];
 
-// ══════════════════════════════════════════════════════════════════
-// WORD COUNT
-// ══════════════════════════════════════════════════════════════════
 function wordCount(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
-// ══════════════════════════════════════════════════════════════════
-// MODAL
-// ══════════════════════════════════════════════════════════════════
-export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
+export default function AddNoteModal({ onClose, onSave, userId }: AddNoteModalProps) {
   const { dark } = useTheme();
 
-  const [title, setTitle]           = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedType, setType]     = useState<NoteType>(NOTE_TYPES[0]);
-  const [selectedIcon, setIcon]     = useState<NoteIcon>(NOTE_ICONS[0]);
-  const [pinned, setPinned]         = useState(false);
-  const [starred, setStarred]       = useState(false);
+  const [title, setTitle]               = useState("");
+  const [description, setDescription]   = useState("");
+  const [selectedType, setType]         = useState<NoteType>(NOTE_TYPES[0]);
+  const [selectedIcon, setIcon]         = useState<NoteIcon>(NOTE_ICONS[0]);
+  const [pinned, setPinned]             = useState(false);
+  const [starred, setStarred]           = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [typeDropOpen, setTypeDropOpen]     = useState(false);
-  const [titleError, setTitleError] = useState("");
+  const [titleError, setTitleError]     = useState("");
   const [activeFormat, setActiveFormat] = useState<string[]>([]);
 
-  const titleRef   = useRef<HTMLInputElement>(null);
-  const iconRef    = useRef<HTMLDivElement>(null);
-  const typeRef    = useRef<HTMLDivElement>(null);
+  // ── NEW: API state ──────────────────────────────────────────────
+  const [saving, setSaving]     = useState(false);
+  const [apiError, setApiError] = useState("");
 
-  // autofocus title
+  const titleRef = useRef<HTMLInputElement>(null);
+  const iconRef  = useRef<HTMLDivElement>(null);
+  const typeRef  = useRef<HTMLDivElement>(null);
+
   useEffect(() => { titleRef.current?.focus(); }, []);
 
-  // Escape to close
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  // close pickers on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (iconRef.current && !iconRef.current.contains(e.target as Node)) setIconPickerOpen(false);
@@ -190,18 +155,63 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const handleSave = () => {
-    if (!title.trim()) { setTitleError("Please add a title for your note"); titleRef.current?.focus(); return; }
-    onSave({ title: title.trim(), description, type: selectedType.id, icon: selectedIcon.id, pinned, starred });
-    onClose();
+  // ── UPDATED handleSave ──────────────────────────────────────────
+  const handleSave = async () => {
+    setApiError("");
+    if (!title.trim()) {
+      setTitleError("Please add a title for your note");
+      titleRef.current?.focus();
+      return;
+    }
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    // Resolve user_id: prefer prop, fall back to localStorage
+    const resolvedUserId =
+      userId ??
+      (() => {
+        try {
+          const u = JSON.parse(localStorage.getItem("user") ?? "null");
+          return u?.user_id ?? null;
+        } catch {
+          return null;
+        }
+      })();
+
+    setSaving(true);
+    try {
+      await api.post(
+        "/api/notes/add-note",
+        {
+          user_id:     resolvedUserId,
+          title:       title.trim(),
+          description,
+          type:        selectedType.id,
+        },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      // Notify parent (for optimistic UI updates / list refresh)
+      onSave({ title: title.trim(), description, type: selectedType.id, icon: selectedIcon.id, pinned, starred });
+      onClose();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ??
+        err?.response?.data?.error ??
+        "Failed to save note. Please try again.";
+      setApiError(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleFormat = (label: string) => {
     setActiveFormat(prev => prev.includes(label) ? prev.filter(f => f !== label) : [...prev, label]);
   };
 
-  // ── theme tokens ──
-  const bg         = dark ? "bg-[#111013]"          : "bg-[#fafaf8]";
+  // ── theme tokens ────────────────────────────────────────────────
   const modalBg    = dark ? "bg-[#18161c]"          : "bg-white";
   const bdr        = dark ? "border-white/[0.07]"   : "border-black/[0.07]";
   const bdrStrong  = dark ? "border-white/[0.1]"    : "border-black/[0.1]";
@@ -209,7 +219,6 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
   const sub        = dark ? "text-[#635f5a]"        : "text-[#a09c97]";
   const surface    = dark ? "bg-white/[0.04]"       : "bg-black/[0.03]";
   const surfaceHov = dark ? "hover:bg-white/[0.07]" : "hover:bg-black/[0.05]";
-  const inputBg    = dark ? "bg-[#1e1b22]"          : "bg-[#f5f4f1]";
   const divider    = dark ? "border-white/[0.06]"   : "border-black/[0.06]";
   const dropBg     = dark ? "bg-[#1e1b22] border-white/[0.08]" : "bg-white border-black/[0.09]";
 
@@ -236,7 +245,7 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
         {/* ══ HEADER ══ */}
         <div className={`flex items-center justify-between px-6 py-4 border-b ${divider} flex-shrink-0`}>
           <div className="flex items-center gap-3">
-            {/* Icon picker trigger */}
+            {/* Icon picker */}
             <div className="relative" ref={iconRef}>
               <button
                 onClick={() => setIconPickerOpen(!iconPickerOpen)}
@@ -250,7 +259,6 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
                 </span>
               </button>
 
-              {/* Icon picker dropdown */}
               {iconPickerOpen && (
                 <div className={`absolute left-0 top-full mt-2 p-3 rounded-2xl border ${dropBg} shadow-2xl z-20 w-52`}>
                   <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2.5 ${sub}`}>Choose Icon</p>
@@ -281,34 +289,16 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* AI suggest */}
-            <button
-              title="AI suggestions"
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border ${bdr} ${surface} ${surfaceHov} transition-all`}
-            >
+            <button title="AI suggestions" className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border ${bdr} ${surface} ${surfaceHov} transition-all`}>
               <Sparkles size={12} className="text-[#e8a44a]" />
               <span className={sub}>AI</span>
             </button>
-
-            {/* Pin */}
-            <button
-              onClick={() => setPinned(!pinned)}
-              title={pinned ? "Unpin" : "Pin note"}
-              className={`p-2 rounded-xl transition-all ${surfaceHov} ${pinned ? "text-[#e8a44a]" : sub}`}
-            >
+            <button onClick={() => setPinned(!pinned)} title={pinned ? "Unpin" : "Pin note"} className={`p-2 rounded-xl transition-all ${surfaceHov} ${pinned ? "text-[#e8a44a]" : sub}`}>
               <Pin size={15} className={pinned ? "fill-[#e8a44a]" : ""} />
             </button>
-
-            {/* Star */}
-            <button
-              onClick={() => setStarred(!starred)}
-              title={starred ? "Unstar" : "Star note"}
-              className={`p-2 rounded-xl transition-all ${surfaceHov} ${starred ? "text-[#e8a44a]" : sub}`}
-            >
+            <button onClick={() => setStarred(!starred)} title={starred ? "Unstar" : "Star note"} className={`p-2 rounded-xl transition-all ${surfaceHov} ${starred ? "text-[#e8a44a]" : sub}`}>
               <Star size={15} className={starred ? "fill-[#e8a44a]" : ""} />
             </button>
-
-            {/* Close */}
             <button onClick={onClose} className={`p-2 rounded-xl ${surfaceHov} ${sub} transition-colors`}>
               <X size={16} />
             </button>
@@ -318,7 +308,15 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
         {/* ══ BODY ══ */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* Title row */}
+          {/* API error banner */}
+          {apiError && (
+            <div className="mx-6 mt-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+              <AlertCircle size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-400 leading-relaxed">{apiError}</p>
+            </div>
+          )}
+
+          {/* Title */}
           <div className="px-6 pt-5 pb-2">
             <input
               ref={titleRef}
@@ -357,7 +355,6 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
             </div>
           </div>
 
-          {/* Divider */}
           <div className={`h-px mx-6 ${dark ? "bg-white/[0.05]" : "bg-black/[0.05]"}`} />
 
           {/* Formatting toolbar */}
@@ -373,10 +370,7 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
                   onClick={() => toggleFormat(label)}
                   title={shortcut ? `${label} ${shortcut}` : label}
                   className={`flex-shrink-0 p-1.5 rounded-lg transition-all duration-100
-                    ${isActive
-                      ? `${selectedType.accentBg} ${selectedType.accent}`
-                      : `${sub} ${surfaceHov}`
-                    }`}
+                    ${isActive ? `${selectedType.accentBg} ${selectedType.accent}` : `${sub} ${surfaceHov}`}`}
                 >
                   <Icon size={14} />
                 </button>
@@ -384,7 +378,7 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
             })}
           </div>
 
-          {/* Description / content area */}
+          {/* Textarea */}
           <div className="px-6 py-4">
             <textarea
               value={description}
@@ -396,27 +390,20 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
             />
           </div>
 
-          {/* Extra meta row */}
+          {/* Meta row */}
           <div className={`mx-6 mb-4 p-4 rounded-2xl border ${bdr} ${surface} flex flex-wrap gap-4`}>
-            {/* Selected type badge */}
             <div className="flex items-center gap-2">
               <span className={`text-[11px] uppercase tracking-widest font-semibold ${sub}`}>Category</span>
               <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${selectedType.accentBg} ${selectedType.accent}`}>
-                <selectedType.Icon size={11} />
-                {selectedType.label}
+                <selectedType.Icon size={11} />{selectedType.label}
               </span>
             </div>
-
-            {/* Selected icon badge */}
             <div className="flex items-center gap-2">
               <span className={`text-[11px] uppercase tracking-widest font-semibold ${sub}`}>Icon</span>
               <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${surface} border ${bdr} ${txt}`}>
-                <selectedIcon.Icon size={11} />
-                {selectedIcon.label}
+                <selectedIcon.Icon size={11} />{selectedIcon.label}
               </span>
             </div>
-
-            {/* Flags */}
             {(pinned || starred) && (
               <div className="flex items-center gap-2">
                 {pinned  && <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#e8a44a]/10 text-[#e8a44a]"><Pin size={10} className="fill-[#e8a44a]" />Pinned</span>}
@@ -428,30 +415,32 @@ export default function AddNoteModal({ onClose, onSave }: AddNoteModalProps) {
 
         {/* ══ FOOTER ══ */}
         <div className={`flex items-center justify-between px-6 py-4 border-t ${divider} flex-shrink-0 gap-3`}>
-          <div className="flex items-center gap-3">
-            <span className={`text-[11px] ${sub} hidden sm:block`}>
-              Press <kbd className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${dark ? "border-white/20 bg-white/5" : "border-black/15 bg-black/5"}`}>Esc</kbd> to discard
-            </span>
-          </div>
+          <span className={`text-[11px] ${sub} hidden sm:block`}>
+            Press <kbd className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${dark ? "border-white/20 bg-white/5" : "border-black/15 bg-black/5"}`}>Esc</kbd> to discard
+          </span>
 
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium ${surface} ${surfaceHov} ${txt} border ${bdr} transition-colors`}
+              disabled={saving}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium ${surface} ${surfaceHov} ${txt} border ${bdr} transition-colors disabled:opacity-50`}
             >
               Discard
             </button>
             <button
               onClick={handleSave}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.97]
-                ${title.trim()
-                  ? `${selectedType.accentSolid} text-white`
-                  : `${surface} ${sub} cursor-not-allowed border ${bdr}`
+              disabled={saving || !title.trim()}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all
+                ${saving || !title.trim()
+                  ? `${surface} ${sub} cursor-not-allowed border ${bdr} opacity-60`
+                  : `${selectedType.accentSolid} text-white hover:opacity-90 active:scale-[0.97]`
                 }`}
-              style={title.trim() ? { boxShadow: "0 4px 20px rgba(0,0,0,0.2)" } : {}}
+              style={title.trim() && !saving ? { boxShadow: "0 4px 20px rgba(0,0,0,0.2)" } : {}}
             >
-              <PenLine size={14} />
-              Save Note
+              {saving
+                ? <><Loader2 size={14} className="animate-spin" />Saving…</>
+                : <><PenLine size={14} />Save Note</>
+              }
             </button>
           </div>
         </div>

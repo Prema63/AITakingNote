@@ -60,7 +60,6 @@ function InputField({
     type,
     value,
     onChange,
-    placeholder,
     icon: Icon,
     error,
     dark,
@@ -70,7 +69,6 @@ function InputField({
     type: string;
     value: string;
     onChange: (v: string) => void;
-    placeholder: string;
     icon: React.ElementType;
     error?: string;
     dark: boolean;
@@ -97,8 +95,7 @@ function InputField({
                     type={type}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    placeholder={placeholder}
-                    className={`flex-1 bg-transparent outline-none text-sm ${text} placeholder-[#5a5652]`}
+                    className={`flex-1 bg-transparent outline-none text-sm ${text} `}
                 />
                 {rightElement}
             </div>
@@ -144,9 +141,9 @@ function PasswordStrength({ password, dark }: { password: string; dark: boolean 
                 ))}
             </div>
             <span className={`text-[10px] font-medium ${score === 1 ? "text-red-400" :
-                    score === 2 ? "text-amber-400" :
-                        score === 3 ? "text-yellow-400" :
-                            "text-green-400"
+                score === 2 ? "text-amber-400" :
+                    score === 3 ? "text-yellow-400" :
+                        "text-green-400"
                 }`}>
                 {label}
             </span>
@@ -350,7 +347,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: RegisterModa
                         type="text"
                         value={name}
                         onChange={(v) => { setName(v); setErrors((e) => ({ ...e, name: undefined })); }}
-                        placeholder="Alex Morgan"
                         icon={User}
                         error={errors.name}
                         dark={dark}
@@ -362,7 +358,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: RegisterModa
                         type="email"
                         value={email}
                         onChange={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: undefined })); }}
-                        placeholder="alex@example.com"
                         icon={Mail}
                         error={errors.email}
                         dark={dark}
@@ -375,7 +370,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: RegisterModa
                             type={showPass ? "text" : "password"}
                             value={password}
                             onChange={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: undefined })); }}
-                            placeholder="Min. 8 characters"
                             icon={Lock}
                             error={errors.password}
                             dark={dark}
@@ -398,7 +392,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: RegisterModa
                         type={showConf ? "text" : "password"}
                         value={confirm}
                         onChange={(v) => { setConfirm(v); setErrors((e) => ({ ...e, confirm: undefined })); }}
-                        placeholder="Re-enter your password"
                         icon={ShieldCheck}
                         error={errors.confirm}
                         dark={dark}
@@ -412,47 +405,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }: RegisterModa
                             </button>
                         }
                     />
-
-                    {/* Terms note */}
-                    <p className={`text-[11px] leading-relaxed ${sub} text-center px-2`}>
-                        By creating an account, you agree to our{" "}
-                        <span className="text-[#e8a44a] cursor-pointer hover:underline">Terms of Service</span>{" "}
-                        and{" "}
-                        <span className="text-[#e8a44a] cursor-pointer hover:underline">Privacy Policy</span>.
-                    </p>
-                </div>
-
-                {/* ── Footer ── */}
-                <div className={`px-6 py-5 border-t ${divider} flex flex-col gap-3`}>
-                    {/* Register button */}
-                    <button
-                        onClick={handleRegister}
-                        disabled={loading}
-                        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all
-              ${loading
-                                ? `${surface} ${sub} cursor-not-allowed border ${border}`
-                                : `${accentBg} text-[#0f0f12] hover:opacity-90 active:scale-[0.98]`
-                            }`}
-                        style={!loading ? { boxShadow: "0 4px 20px rgba(232,164,74,0.3)" } : {}}
-                    >
-                        {loading
-                            ? <><Loader2 size={16} className="animate-spin" /> Creating account…</>
-                            : <><User size={15} /> Create Account</>
-                        }
-                    </button>
-
-                    {/* Switch to login */}
-                    {onSwitchToLogin && (
-                        <p className={`text-center text-xs ${sub}`}>
-                            Already have an account?{" "}
-                            <button
-                                onClick={onSwitchToLogin}
-                                className="text-[#e8a44a] font-semibold hover:underline transition-all"
-                            >
-                                Log in
-                            </button>
-                        </p>
-                    )}
                 </div>
             </div>
         </div>

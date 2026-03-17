@@ -15,7 +15,7 @@ export default function NoteCard({
   return (
     <div className="relative rounded-2xl border bg-white dark:bg-white/5 border-black/10 dark:border-white/10 p-4 hover:shadow-lg transition">
       <div className="flex items-center gap-3">
-        <Icon size={18} className={note.tagColor.split(" ")[1]} />
+        {/* <Icon size={18} className={note.tagColor.split(" ")[1]} /> */}
         <h3 className="font-semibold text-sm">{note.title}</h3>
       </div>
 
